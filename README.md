@@ -2,7 +2,7 @@
 
 ## Gratitude
 
-First of all, I would like to earnestly thank you for giving me a reason to learn so much about AWS within a week. I would never be able to learn this much without a reason! Though I worked around the clock to implement this by learning and doing research before every move. Please note I have never used AWS before this. :)
+I would like to express my sincere gratitude to you for presenting me with an opportunity to extensively learn about AWS within a short span of a week. This opportunity has enriched me with invaluable knowledge that I would not have gained without a substantial reason. Although it required round-the-clock work, every moment was spent productively in learning and researching prior to each implementation. It's worth mentioning that this was my first hands-on experience with AWS, making it an even more rewarding journey. :)
 
 ## Welcome to the CRUK AWS project!
 
@@ -59,7 +59,7 @@ I also implemented MD5 checksum verification for file integrity. I intended to u
 ## Scalability:
 The solution uses managed services like AWS Glue and Amazon Athena that can automatically scale to handle large datasets. If the dataset were to grow to 1 TiB with new data arriving each day, the main change would be to increase the resources allocated to the Glue jobs and Athena queries, which can be done easily through the AWS management console. However, it would also be important to monitor costs, as processing large amounts of data on AWS can be expensive.
 
-For Aurora postgresql it's by design vartically scalable. But we can use sharding and also assign new readers for it to make horizontally scalable.
+For Aurora postgresql it's by design vertically scalable. But we can use sharding and also assign new readers for it to make horizontally scalable.
 
 And regarding file size Databricks doesn’t even recommend to partition tables smaller than 1 TB because the overhead of managing numerous small partitions outweighs the performance benefits or the performance gains are often “negligible”.
 
@@ -67,5 +67,8 @@ However for our case since we are working with time-based data we can benefit by
 
 ## Monitor and Optimize Performance: 
 Use Amazon RDS Performance Insights and Amazon CloudWatch to monitor your database performance. These tools can help you identify bottlenecks and optimize your database for better performance and scalability.
+
+## Challenges Faced:
+As a newcomer to AWS, my entry into the AWS Console felt like stepping into a brand new universe. Needless to say, the entire process was quite challenging – from identifying the appropriate service to constructing the ETL jobs and integrating various solutions. Among all these, the most formidable challenge was dealing with AWS Cloud Development Kit (CDK) for Infrastructure as Code (IaaC). In particular, I encountered difficulty in replicating a certain component of the Glue workflow that I had initially built in AWS. This was due to the unavailability of a specific CfnCrawler trigger dependency for Glue jobs.
 
 Thank you!
