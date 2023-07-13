@@ -2,7 +2,7 @@
 
 ## Gratitude
 
-First of all I would like to earnestly thank you for giving me a reason to learn so much about AWS within a week. I would never be able to learn this much with a reason!
+First of all, I would like to earnestly thank you for giving me a reason to learn so much about AWS within a week. I would never be able to learn this much without a reason! Though I worked around the clock to implement this by learning and doing research before every move. Please note I have never used AWS before this. :)
 
 ## Welcome to the CRUK AWS project!
 
