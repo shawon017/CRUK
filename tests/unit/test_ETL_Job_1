@@ -1,0 +1,16 @@
+import pytest
+import hashlib
+import requests
+
+# We would typically put this in a separate module
+def download_file(url):
+    response = requests.get(url)
+    return response.content
+
+def test_download_file(mocker):
+    # Mock the requests.get function to return a response with a known content
+    mocker.patch('requests.get', return_value=mocker.Mock(content=b"content"))
+
+    url = 'https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2021-03.parquet'
+    content = download_file(url)
+    assert content == b"content"
