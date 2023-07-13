@@ -73,6 +73,7 @@ class CrukCdkStack(Stack):
         s3deploy.BucketDeployment(self, "DeployAsset",
             sources=[s3deploy.Source.asset("./python-scripts")],
             destination_bucket=placeholder_bucket,
+            destination_key_prefix="python-scripts",
         )
 
         # Create an IAM role with full administration access
@@ -109,20 +110,12 @@ class CrukCdkStack(Stack):
         glue_job_names = []
         glueJobs = []
         for script in scripts:
-            # Create an asset for the script
-            # asset = s3_assets.Asset(self, f"Asset{script}", path=f"python-scripts/{script}")
 
             # Get the input and output buckets for this job
             input_bucket = buckets[script]["input"]
             output_bucket = buckets[script]["output"]
             bucketName = buckets[script]["name"]
             script_loc = f"s3://qa-placeholder/python-scripts/{script}"
-
-            # Upload the script to the input bucket
-            # s3deploy.BucketDeployment(self, f"Deploy_{script}",
-            #     sources=[s3deploy.Source.asset(f"./python-scripts/{script}")],
-            #     destination_bucket=bucketName,
-            # )
 
             # Create the Glue job
             glueJob = glue.CfnJob(self, f"jobs_{script.replace('.py', '')}",
@@ -135,8 +128,8 @@ class CrukCdkStack(Stack):
                 default_arguments={
                     "--job-language": "python",
                     "--job-bookmark-option": "job-bookmark-enable",
-                    "--input_bucket": input_bucket,
-                    "--output_bucket": output_bucket,
+                    "--INPUT_BUCKET": input_bucket,
+                    "--OUTPUT_BUCKET": output_bucket,
                 },
                 glue_version="3.0",
                 max_retries=0,
@@ -151,7 +144,6 @@ class CrukCdkStack(Stack):
         
         # Bucket names list
         bucket_names = ["qa-nyc-bronze", "qa-nyc-silver", "qa-nyc-gold"]
-        # buckets = [s3.Bucket(self, bucket_name, bucket_name=bucket_name) for bucket_name in bucket_names]
 
         # Create the Glue database
         database = glue.CfnDatabase(self, "Database", 
@@ -272,6 +264,7 @@ class CrukCdkStack(Stack):
             type="ON_DEMAND",
             workflow_name=workflow.name,
         )
+        tr_rawdata_to_s3.add_depends_on(glueJobs[0])
 
         # Create the second trigger which is activated when the first job completes
         tr_cleaning = glue.CfnTrigger(self, "Trigger2",
@@ -293,7 +286,8 @@ class CrukCdkStack(Stack):
         )
 
         # Add a dependency to the second trigger on the first trigger
-        tr_cleaning.add_depends_on(tr_rawdata_to_s3)
+        # tr_cleaning.add_depends_on(tr_rawdata_to_s3)
+        tr_cleaning.add_depends_on(glueJobs[1])
 
         # Create the third trigger which is activated when the second job completes
         tr_final_tranform = glue.CfnTrigger(self, "Trigger3",
@@ -315,7 +309,8 @@ class CrukCdkStack(Stack):
         )
 
         # Add a dependency to the third trigger on the second trigger
-        tr_final_tranform.add_depends_on(tr_cleaning)
+        # tr_final_tranform.add_depends_on(tr_cleaning)
+        tr_final_tranform.add_depends_on(glueJobs[2])
 
         # Create the fourth trigger which is activated when the third job completes
         tr_last_crawlers = glue.CfnTrigger(self, "Trigger4",
@@ -337,7 +332,8 @@ class CrukCdkStack(Stack):
         )
 
         # Add a dependency to the fourth trigger on the third trigger
-        tr_last_crawlers.add_depends_on(tr_final_tranform)
+        # tr_last_crawlers.add_depends_on(tr_final_tranform)
+        tr_last_crawlers.add_depends_on(glueCrawlers[2])
 
         # Create the last trigger which is activated when the fourth job completes
         final_trigger = glue.CfnTrigger(self, "FinalTrigger",
@@ -346,21 +342,41 @@ class CrukCdkStack(Stack):
             ],
             predicate=glue.CfnTrigger.PredicateProperty(
                 conditions=[glue.CfnTrigger.ConditionProperty(
-                    job_name=glueJobs[2].name,  # The last trigger waits for the fourth job to complete
+                    job_name=glueJobs[2].name,  # The third trigger waits for the third crawler to complete
+                    crawler_name=glueCrawlers[2].name,
                     logical_operator="EQUALS",
                     state="SUCCEEDED"
                 )],
                 logical="ANY"
             ),
-            type="CONDITIONAL",
+            type="CONDITIONAL",  # This trigger is activated when the workflow is started
             start_on_creation=False,
             workflow_name=workflow.name,
         )
 
-        # Add a dependency to the final trigger on the fourth trigger
-        final_trigger.add_depends_on(tr_last_crawlers)
+        # # Add a dependency to the final trigger on the fourth trigger
+        # final_trigger.add_depends_on(tr_last_crawlers)
+        # final_trigger.add_depends_on(glueJobs[3])
 
-       
+    #     # Create the last trigger which is activated when the fourth job completes
+    #     final_trigger_watcher = glue.CfnTrigger(self, "FinalTriggerWatcher",
+    #         actions=[  # This trigger does not need to start any actions
+    #         ],
+    #         predicate=glue.CfnTrigger.PredicateProperty(
+    #             conditions=[glue.CfnTrigger.ConditionProperty(
+    #                 job_name=glueJobs[3].name,  # This trigger waits for the fourth job to complete
+    #                 logical_operator="EQUALS",
+    #                 state="SUCCEEDED"
+    #             )],
+    #             logical="ANY"
+    #         ),
+    #         type="CONDITIONAL",
+    #         start_on_creation=False,
+    #         workflow_name=workflow.name,
+    #     )
+
+    #    # Add a dependency to the final trigger on the fourth job trigger
+    #     final_trigger_watcher.add_depends_on(final_trigger)
 
         # # Create the triggers
         # triggers = []

@@ -73,4 +73,7 @@ As a newcomer to AWS, my entry into the AWS Console felt like stepping into a br
 E.g. - I needed this ETL_Job_3 -->  Crawler 3 and Crawler 4 --> ETL_Job_4_Load_to_DB
 but the current CDK is working like - ETL_Job_3 -->  Crawler 3 and Crawler 4 
                                                 -->  ETL_Job_4_Load_to_DB
+
+13 Jul 10:30 pm - Another important thing just noticed that The AWS CDK deploys resources concurrently by default, so it can try to create the trigger before the job. This can be solved by adding an explicit dependency to ensure the job is created before the trigger. 
+
 Thank you!
