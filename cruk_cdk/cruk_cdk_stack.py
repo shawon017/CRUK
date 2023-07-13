@@ -72,7 +72,7 @@ class CrukCdkStack(Stack):
         # Create a bucket deployment to upload the local file to the bucket
         s3deploy.BucketDeployment(self, "DeployAsset",
             sources=[s3deploy.Source.asset("./python-scripts")],
-            destination_bucket=placeholder_bucket,
+            destination_bucket=gold_bucket,
         )
 
         # Create an IAM role with full administration access
