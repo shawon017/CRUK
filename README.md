@@ -17,9 +17,6 @@ This repo demonstrates a CDK app with an instance of a stack (`cruk_cdk_stack`)
 - [Product Versions](#Product-Versions)
 - [Architecture](#Architecture)
 - [High level work flow](#High-level-work-flow)
-- [Repository Structure](#Repository-Structure)
-- [Deploy](#Deploy)
-- [Sample Workflow Execution](#Sample-Workflow-Execution-and-Notification)
 
 ## Limitations
 AWS Glue:
