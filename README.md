@@ -70,5 +70,7 @@ Use Amazon RDS Performance Insights and Amazon CloudWatch to monitor your databa
 
 ## Challenges Faced:
 As a newcomer to AWS, my entry into the AWS Console felt like stepping into a brand new universe. Needless to say, the entire process was quite challenging – from identifying the appropriate service to constructing the ETL jobs and integrating various solutions. Among all these, the most formidable challenge was dealing with AWS Cloud Development Kit (CDK) for Infrastructure as Code (IaaC). In particular, I encountered difficulty in replicating a certain component of the Glue workflow that I had initially built in AWS. This was due to the unavailability of a specific CfnCrawler trigger dependency for Glue jobs.
-
+E.g. - I needed this ETL_Job_3 -->  Crawler 3 and Crawler 4 --> ETL_Job_4_Load_to_DB
+but the current CDK is working like - ETL_Job_3 -->  Crawler 3 and Crawler 4 
+                                                -->  ETL_Job_4_Load_to_DB
 Thank you!
