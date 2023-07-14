@@ -76,4 +76,6 @@ but the current CDK is working like - ETL_Job_3 -->  Crawler 3 and Crawler 4
 
 13 Jul 10:30 pm - Another important thing just noticed that The AWS CDK deploys resources concurrently by default, so it can try to create the trigger before the job. This can be solved by adding an explicit dependency to ensure the job is created before the trigger. 
 
+14 Jul 1:53 am - So I had the start_on_creation = False which leaves the triggers in the 'CREATE' state and when I run the workflow it start runs the first job then does nothin. So fixed by swithing to true.
+
 Thank you!

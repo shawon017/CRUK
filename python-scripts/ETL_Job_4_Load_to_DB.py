@@ -32,8 +32,8 @@ try:
     # Script generated for node AWS Glue Data Catalog
     AWSGlueDataCatalog_node1689085085428 = glueContext.write_dynamic_frame.from_catalog(
         frame=S3bucket_node1,
-        database="nyc-curated-db",
-        table_name="test_nyccrukdb_public_nyctripdata",
+        database="nyc-cruk-db",
+        table_name="nyccrukdb_public_nyctripdata_new",
         transformation_ctx="AWSGlueDataCatalog_node1689085085428",
     )
 except Exception as e:
