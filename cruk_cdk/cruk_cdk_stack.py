@@ -286,8 +286,8 @@ class CrukCdkStack(Stack):
         )
 
         # Add a dependency to the second trigger on the first trigger
-        # tr_cleaning.add_depends_on(tr_rawdata_to_s3)
-        tr_cleaning.add_depends_on(glueJobs[1])
+        tr_cleaning.add_depends_on(tr_rawdata_to_s3)
+        # tr_cleaning.add_depends_on(glueJobs[1])
 
         # Create the third trigger which is activated when the second job completes
         tr_final_tranform = glue.CfnTrigger(self, "Trigger3",
@@ -309,8 +309,8 @@ class CrukCdkStack(Stack):
         )
 
         # Add a dependency to the third trigger on the second trigger
-        # tr_final_tranform.add_depends_on(tr_cleaning)
-        tr_final_tranform.add_depends_on(glueJobs[2])
+        tr_final_tranform.add_depends_on(tr_cleaning)
+        # tr_final_tranform.add_depends_on(glueJobs[2])
 
         # Create the fourth trigger which is activated when the third job completes
         tr_last_crawlers = glue.CfnTrigger(self, "Trigger4",
@@ -332,8 +332,9 @@ class CrukCdkStack(Stack):
         )
 
         # Add a dependency to the fourth trigger on the third trigger
-        # tr_last_crawlers.add_depends_on(tr_final_tranform)
-        tr_last_crawlers.add_depends_on(glueCrawlers[2])
+        tr_last_crawlers.add_depends_on(tr_final_tranform)
+        # tr_last_crawlers.add_depends_on(glueCrawlers[2])
+        # tr_last_crawlers.add_depends_on(glueCrawlers[3])
 
         # Create the last trigger which is activated when the fourth job completes
         final_trigger = glue.CfnTrigger(self, "FinalTrigger",
@@ -341,13 +342,20 @@ class CrukCdkStack(Stack):
                 glue.CfnTrigger.ActionProperty(job_name=glueJobs[3].name)  # This is the last job
             ],
             predicate=glue.CfnTrigger.PredicateProperty(
-                conditions=[glue.CfnTrigger.ConditionProperty(
-                    job_name=glueJobs[2].name,  # The third trigger waits for the third crawler to complete
+                conditions=[
+                    glue.CfnTrigger.ConditionProperty( # The third trigger waits for the third crawler to complete
                     crawler_name=glueCrawlers[2].name,
                     logical_operator="EQUALS",
-                    state="SUCCEEDED"
-                )],
-                logical="ANY"
+                    crawl_state="SUCCEEDED"
+
+                ),
+                glue.CfnTrigger.ConditionProperty(
+                    crawler_name=glueCrawlers[3].name,
+                    logical_operator="EQUALS",
+                    crawl_state="SUCCEEDED"
+                )
+                ],
+                logical="AND"
             ),
             type="CONDITIONAL",  # This trigger is activated when the workflow is started
             start_on_creation=False,
@@ -355,8 +363,9 @@ class CrukCdkStack(Stack):
         )
 
         # # Add a dependency to the final trigger on the fourth trigger
-        # final_trigger.add_depends_on(tr_last_crawlers)
+        final_trigger.add_depends_on(tr_last_crawlers)
         # final_trigger.add_depends_on(glueJobs[3])
+        # final_trigger.node.add_dependency(glueJobs[3])
 
     #     # Create the last trigger which is activated when the fourth job completes
     #     final_trigger_watcher = glue.CfnTrigger(self, "FinalTriggerWatcher",
