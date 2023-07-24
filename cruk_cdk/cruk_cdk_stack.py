@@ -17,6 +17,7 @@ from aws_cdk import (
     aws_secretsmanager as secretsmanager,
     
 )
+from aws_cdk.custom_resources import AwsCustomResource, AwsCustomResourcePolicy, PhysicalResourceId
 
 
 class CrukCdkStack(Stack):
@@ -77,52 +78,75 @@ class CrukCdkStack(Stack):
         )
 
         # Create an IAM role with full administration access
-        role = iam.Role(self, "MyRole",
-            role_name="CDK-Admin-Role",
-            assumed_by=iam.CompositePrincipal(
-                iam.ServicePrincipal("rds.amazonaws.com"),
-                iam.ServicePrincipal("s3.amazonaws.com"),
-                iam.ServicePrincipal("glue.amazonaws.com"),
-                iam.ServicePrincipal("athena.amazonaws.com"), 
-                iam.ServicePrincipal("transfer.amazonaws.com"),  
-            ),
-        )
-        role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AdministratorAccess"))
-        role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"))
-        role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonAthenaFullAccess"))
-        role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueServiceRole"))
-        role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonRDSFullAccess"))
+        # role = iam.Role(self, "MyRole",
+        #     role_name="CDK-ETL-Role",
+        #     assumed_by=iam.CompositePrincipal(
+        #         iam.ServicePrincipal("rds.amazonaws.com"),
+        #         iam.ServicePrincipal("s3.amazonaws.com"),
+        #         iam.ServicePrincipal("glue.amazonaws.com"),
+        #         iam.ServicePrincipal("athena.amazonaws.com"), 
+        #         iam.ServicePrincipal("transfer.amazonaws.com"),  
+        #     ),
+        # )
+        # role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AdministratorAccess"))
+        # role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"))
+        # role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonAthenaFullAccess"))
+        # role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"))
+        # role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonRDSFullAccess"))
 
+ 
         # Define the bucket policy
-        bucket_policy = iam.PolicyStatement(
-            actions=["s3:*"],
-            effect=iam.Effect.ALLOW,
-            principals=[role],
-            resources=[gold_bucket.bucket_arn, gold_bucket.arn_for_objects("*")]
-        )
+        # bucket_policy = iam.PolicyStatement(
+        #     actions=["s3:*"],
+        #     effect=iam.Effect.ALLOW,
+        #     principals=[role],
+        #     resources=[gold_bucket.bucket_arn, gold_bucket.arn_for_objects("*")]
+        # )
 
         # Attach the policy to the bucket
-        gold_bucket.add_to_resource_policy(bucket_policy)
+        # gold_bucket.add_to_resource_policy(bucket_policy)
 
+        """ old vpc code """
         # Create a VPC with default configuration
-        vpc = ec2.Vpc(self, "VPC")
+        # vpc = ec2.Vpc(self, "VPC")
 
         # The default security group is available as vpc.vpc_default_security_group
-        default_sg = ec2.SecurityGroup.from_security_group_id(
-            self, "DefaultSG", vpc.vpc_default_security_group
-        )
+        # default_sg = ec2.SecurityGroup.from_security_group_id(
+        #     self, "DefaultSG", vpc.vpc_default_security_group
+        # )
 
         # Add an all traffic inbound rule
-        default_sg.add_ingress_rule(
-            peer=ec2.Peer.any_ipv4(),  # Allow traffic from any IP
-            connection=ec2.Port.all_traffic()  # Allow all traffic
-        )
+        # default_sg.add_ingress_rule(
+        #     peer=ec2.Peer.any_ipv4(),  # Allow traffic from any IP
+        #     connection=ec2.Port.all_traffic()  # Allow all traffic
+        # )
 
-        # Add an all traffic outbound rule
-        default_sg.add_egress_rule(
-            peer=ec2.Peer.any_ipv4(),  # Allow traffic to any IP
-            connection=ec2.Port.all_traffic()  # Allow all traffic
-        )
+        # # Add an all traffic outbound rule
+        # default_sg.add_egress_rule(
+        #     peer=ec2.Peer.any_ipv4(),  # Allow traffic to any IP
+        #     connection=ec2.Port.all_traffic()  # Allow all traffic
+        # )
+
+        # S3 endpoint gateway for the VPC
+        # s3_endpoint = ec2.GatewayVpcEndpoint(self, "S3Endpoint",
+        #     vpc=vpc,
+        #     service=ec2.GatewayVpcEndpointAwsService.S3
+        # )
+
+        # Create VPC
+        vpc = ec2.Vpc(self, 'Vpc', max_azs=2)
+
+        # Create Security Group
+        security_group = ec2.SecurityGroup(self, 'SecurityGroup', vpc=vpc)
+
+        # Allow inbound traffic on port 5432 (PostgreSQL)
+        security_group.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.tcp(5432))
+         # Add an outbound rule to the security group for all traffic
+        security_group.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.all_traffic())
+
+
+        # Add an outbound rule to the security group for all traffic
+        security_group.add_egress_rule(ec2.Peer.any_ipv4(), ec2.Port.all_traffic())
 
         # S3 endpoint gateway for the VPC
         s3_endpoint = ec2.GatewayVpcEndpoint(self, "S3Endpoint",
@@ -130,18 +154,54 @@ class CrukCdkStack(Stack):
             service=ec2.GatewayVpcEndpointAwsService.S3
         )
 
+        # Create a VPC endpoint for Secrets Manager
+        secretsmanager_endpoint = vpc.add_interface_endpoint("SecretsManagerEndpoint",
+            service=ec2.InterfaceVpcEndpointAwsService('secretsmanager')
+        )
+
+        # Allow the VPC endpoint to connect to Secrets Manager
+        secretsmanager_endpoint.connections.allow_to_any_ipv4(
+            ec2.Port.tcp(443),
+            "Allow outbound HTTPS traffic to Secrets Manager"
+        )
+
+        # Allow the Security Group to connect to the VPC endpoint
+        secretsmanager_endpoint.connections.allow_from(security_group,
+            ec2.Port.tcp(443),
+            "Allow inbound HTTPS traffic from Security Group to Secrets Manager"
+        )
+
+        # Create IAM Role for Glue Crawler
+        role = iam.Role(self, 'GlueRole', assumed_by=iam.ServicePrincipal('glue.amazonaws.com'))
+
+        # Attach necessary policies to the role
+        role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name('service-role/AWSGlueServiceRole'))
+        role.add_to_policy(iam.PolicyStatement(
+            actions=['ec2:DescribeVpcs', 'ec2:DescribeSubnets', 'ec2:DescribeSecurityGroups', 's3:GetObject', 's3:PutObject'],
+            resources=['*',
+                       'arn:aws:s3:::qa-nyc-bucket/*']
+        ))
+
+
         # Create a secret to hold the master username and password
         master_user_secret = secretsmanager.Secret(self, "MasterUserSecret",
             description="Credentials for the master user of the Aurora Serverless DB cluster",
             secret_name="AuroraServerlessMasterUserSecret",
             generate_secret_string=secretsmanager.SecretStringGenerator(
-                secret_string_template='{"username": "nycnur"}',  # change here
+                secret_string_template='{"username":"nycuser"}',  # change here
                 generate_string_key="password",  # and here
+                # generate_string_key=None,
                 exclude_characters='{}[]()/\'"\\`_@:;<>+=|^?*~%',
                 password_length=30,
+                # exclude_punctuation=True,
             ),
         )
 
+        # secretuser = iam.User(self, "SecretCRUKUser",
+        #     user_name=master_user_secret.secret_value_from_json("username").to_string(),
+        #     password=master_user_secret.secret_value_from_json("password")
+        # )
+        master_user_secret.grant_read(role) 
 
         # Create an Aurora Serverless v1 DB cluster
         serverless_cluster = rds.ServerlessCluster(self, "ServerlessCluster",
@@ -149,7 +209,14 @@ class CrukCdkStack(Stack):
                 version=rds.AuroraPostgresEngineVersion.VER_13_9 
             ), 
             credentials=rds.Credentials.from_secret(master_user_secret),
-            vpc=vpc,  
+            # credentials=rds.Credentials.from_username('nycnur', password='nyc12345'),
+            # credentials_uname=rds.CredentialsFromUsernameOptions(
+            #     password='nyc12345',
+            #     secret_name='nycnur'
+            # ),
+            vpc=vpc, 
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            security_groups=[security_group], 
             scaling=rds.ServerlessScalingOptions(
                 auto_pause= Duration.minutes(10),  # Pause after 10 minutes of inactivity
                 min_capacity=rds.AuroraCapacityUnit.ACU_2,  # Minimum 2 ACUs
@@ -160,6 +227,7 @@ class CrukCdkStack(Stack):
             cluster_identifier="qa-database-nyc",
             enable_data_api=True,
         )
+
 
         # Create a policy that allows connecting to the RDS instance
         connect_policy = iam.PolicyStatement(
@@ -231,6 +299,7 @@ class CrukCdkStack(Stack):
             )
         )
 
+
         s3Paths = ["s3://qa-nyc-bronze/2021/march/yellow_tripdata_2021-03.parquet", "s3://qa-nyc-silver/2021/march/curated_data", "s3://qa-nyc-gold/2021/march/enriched_data"]
         
         # Create a Glue crawler for each bucket
@@ -256,6 +325,10 @@ class CrukCdkStack(Stack):
             glue_crawler_names.append(scripts[i].replace('.py', ''))
             glueCrawlers.append(glueCrawler)
 
+        # Get the secret value from Secrets Manager
+        secret = secretsmanager.Secret.from_secret_name_v2(self, "ImportedSecret", "AuroraServerlessMasterUserSecret")
+        # secret_value = secret.secret_value
+         
         # Create a Glue connection
         connection = glue.CfnConnection(self, "MyConnection",
             catalog_id=self.account,  # The ID of the data catalog in which to create the connection
@@ -264,21 +337,28 @@ class CrukCdkStack(Stack):
                 name="QA_ETL_Postgres",
                 connection_properties={
                     "JDBC_CONNECTION_URL": "jdbc:postgresql://qa-database-nyc.cluster-cygmkiizijyp.eu-west-2.rds.amazonaws.com:5432/nyccrukdb",
-                    "USERNAME": "nycnur",
-                    "PASSWORD": master_user_secret.secret_arn,
-
-                    "SUBNET_ID": vpc.private_subnets[1].subnet_id,  
-                    "SECURITY_GROUP_ID": default_sg.security_group_id,  
+                    # "USERNAME": "nycnur",
+                    "SECRET_ID": master_user_secret.secret_arn,
+                    # "PASSWORD": master_user_secret.secret_arn,
+                    # "PASSWORD": secretsmanager.Secret(master_user_secret.secret_arn, json_field="password").to_string(),
+                    # "PASSWORD": "nyc12345",
+                    # "PASSWORD": get_secret_value.get_response_field('SecretString.password'),
+                    # "SUBNET_ID": vpc.private_subnets[1].subnet_id,  
+                    # "SECURITY_GROUP_ID": default_sg.security_group_id,  
                 },
                 description="JDBC connection to my RDS instance",
                 match_criteria=["string"],
                 physical_connection_requirements=glue.CfnConnection.PhysicalConnectionRequirementsProperty(
-                availability_zone="eu-west-2a",  
-                security_group_id_list=[default_sg.security_group_id],
-                subnet_id=vpc.private_subnets[1].subnet_id,
+                # availability_zone="eu-west-2a",  
+                # security_group_id_list=[security_group],
+                # subnet_id=vpc.private_subnets[0],
+                    availability_zone=vpc.public_subnets[0].availability_zone,
+                    security_group_id_list=[security_group.security_group_id],
+                    subnet_id=vpc.public_subnets[0].subnet_id
                 ),
             )
         )
+
         # Create a Glue crawler with a JDBC target
         glueCrawler = glue.CfnCrawler(self, "crawler_S3toPostgres",
             name="QA_S3toPostgres",
@@ -295,6 +375,7 @@ class CrukCdkStack(Stack):
                 update_behavior="UPDATE_IN_DATABASE"
             ),
         )
+        glueCrawler.add_depends_on(connection)
         glue_crawler_names.append("S3toPostgres")
         glueCrawlers.append(glueCrawler)
 
@@ -379,8 +460,6 @@ class CrukCdkStack(Stack):
 
         # Add a dependency to the fourth trigger on the third trigger
         tr_last_crawlers.add_depends_on(tr_final_tranform)
-        # tr_last_crawlers.add_depends_on(glueCrawlers[2])
-        # tr_last_crawlers.add_depends_on(glueCrawlers[3])
 
         # Create the last trigger which is activated when the fourth job completes
         final_trigger = glue.CfnTrigger(self, "FinalTrigger",
@@ -432,6 +511,58 @@ class CrukCdkStack(Stack):
     #     final_trigger_watcher.add_depends_on(final_trigger)
 
         # # Create the triggers
+        # triggers = []
+        # for i in range(4):
+        #     # The first trigger is activated when the workflow starts
+        #     if i == 0:
+        #         trigger = glue.CfnTrigger(self, f"Trigger{i}",
+        #             actions=[glue.CfnTrigger.ActionProperty(job_name=glue_job_names[i])],
+        #             type="ON_DEMAND",
+        #             workflow_name=workflow.name,
+        #         )
+        #     # The other triggers are activated when the previous job completes
+        #     else:
+        #         trigger = glue.CfnTrigger(self, f"Trigger{i}",
+        #             actions=[
+        #                 glue.CfnTrigger.ActionProperty(crawler_name=glue_crawler_names[i-1]), 
+        #                 glue.CfnTrigger.ActionProperty(job_name=glue_job_names[i])
+        #             ],
+        #             predicate=glue.CfnTrigger.PredicateProperty(
+        #                 conditions=[glue.CfnTrigger.ConditionProperty(
+        #                     job_name=glue_job_names[i-1],
+        #                     logical_operator="EQUALS",
+        #                     state="SUCCEEDED"
+        #                 )],
+        #                 logical="ANY"
+        #             ),
+        #             type="CONDITIONAL",
+        #             start_on_creation=False,
+        #             workflow_name=workflow.name,
+        #         )
+        #         # Add dependencies
+        #         trigger.node.add_dependency(glueJobs[i-1])
+        #         if i > 0:
+        #             trigger.node.add_dependency(glueCrawlers[i - 1])
+
+        # # Add a final trigger for the last crawler after the last job completes
+        # final_trigger = glue.CfnTrigger(self, "FinalTrigger",
+        #     actions=[glue.CfnTrigger.ActionProperty(crawler_name=glue_crawler_names[-1])],
+        #     predicate=glue.CfnTrigger.PredicateProperty(
+        #         conditions=[glue.CfnTrigger.ConditionProperty(
+        #             job_name=glue_job_names[-1],
+        #             logical_operator="EQUALS",
+        #             state="SUCCEEDED"
+        #         )],
+        #         logical="ANY"
+        #     ),
+        #     type="CONDITIONAL",
+        #     start_on_creation=False,
+        #     workflow_name=workflow.name,
+        # )
+        # # Add dependencies
+        # final_trigger.node.add_dependency(glueJobs[-1])
+
+  # # Create the triggers
         # triggers = []
         # for i in range(4):
         #     # The first trigger is activated when the workflow starts

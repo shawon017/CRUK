@@ -10,6 +10,7 @@ This project builds a simple ETL pipeline utilizing AWS Glue, S3 Bucket and Auro
 
 This repo demonstrates a CDK app with an instance of a stack (`cruk_cdk_stack`)
 
+Note - The create table scripts needs to be executed manually for it to work. I could have used lambda but since it's just one script so didn't do anything for it.
 ---
 
 ## Sections
@@ -43,6 +44,8 @@ AWS Glue:
 7. Final Glue job loads data from catalog table to Aurora postgresql table.
 
 ## Instructions and Strategy: 
+
+
 The solution provided includes a detailed explanation of the strategy and important decisions made throughout the process, which is provided in a markdown file. It discusses the choice of technologies, the structure of the ETL pipeline, and how data quality is ensured.
 
 i. Trip durations were coming null and negative which I removed as a bad data.
